@@ -181,7 +181,7 @@ def SecondInterpolationError(n,M,h):
     M: fourth derivative of the function
     h: step size
     """
-    return 1/(4*(n+1))*M*h**(n+1)
+    return 1/(4*(n+1)) * M *h**(n+1)
 
 # Inverse Quadratic Interpolation
 def InverseQuadraticInterpolation(f,xGuess,n):
@@ -260,9 +260,169 @@ def SimpsonTable(y,x,a,b):
     h = (b-a)/n
     return h/3*(y[0]+y[-1]+4*np.sum(y[1:-1:2])+2*np.sum(y[2:-1:2]))
 
+#####
+# ODE 1st order
+#####
+# Taylor polynomial of order 2
+def TaylorOrder2(f, df, x0, a, b, n):
+    """ Calculates the Taylor polynomial of order 2 for f on [a,b] using n steps
+        f: function as lambda function
+        df: derivative of f as lambda function
+        x0: point of expansion
+        a: lower bound
+        b: upper bound
+        n: number of steps
+    """
+    h = (b-a)/n
+    t = np.linspace(a,b,n+1) 
+    x = np.zeros(n+1)
+    x[0] = x0
+    for i in range(n):
+        dx = f(t[i], x[i])
+        ddx = df(t[i], x[i], dx)
+        x[i+1] = x[i] + h * (dx + h/2 * (ddx))
+    return t, x
+
+# Taylor polynomial of order 4
+def TaylorOrder4(f, df, ddf, x0, a, b, n):
+    """ Calculates the Taylor polynomial of order 4 for f on [a,b] using n steps
+        f: function as lambda function
+        df: derivative of f as lambda function
+        ddf: second derivative of f as lambda function
+        x0: point of expansion
+        a: lower bound
+        b: upper bound
+        n: number of steps
+    """
+    h = (b-a)/n
+    t = np.linspace(a,b,n+1) 
+    x = np.zeros(n+1)
+    x[0] = x0
+    for i in range(n):
+        dx = f(t[i], x[i])
+        ddx = df(t[i], x[i], dx)
+        dddx = ddf(t[i], x[i], dx, ddx)
+        x[i+1] = x[i] + h * (dx + h/2 * (ddx + h/6 * dddx))
+    return t, x
+
+# euler method
+def EulerODE(dxdt, x0, tspan, n):
+    """ Calculates the solution of the ODE using the Euler method
+        dxdt: rhs of the ODE as lambda function
+        x0: point of expansion
+        tspan: [a,b]
+        n: number of steps
+    """
+    a, b = tspan
+    h = (b-a)/n
+    t = np.linspace(a,b,n+1) 
+    x = np.zeros(n+1)
+    x[0] = x0
+    for i in range(n):
+        x[i+1] = x[i] + h * dxdt(t[i], x[i])
+    return t, x
+
+# Runge-kutta method of order 2
+def RungeKutta2(dxdt, x0, tspan, n):
+    """ Calculates the solution of the ODE using the Runge-Kutta method
+        dxdt: rhs of the ODE as lambda function
+        x0: point of expansion
+        tspan: [a,b]
+        n: number of steps
+    """
+    a, b = tspan
+    h = (b-a)/n
+    t = np.linspace(a,b,n+1) 
+    x = np.zeros(n+1)
+    x[0] = x0
+    for i in range(n):
+        k1 = dxdt(t[i], x[i])
+        k2 = dxdt(t[i] + h, x[i] + k1)
+        x[i+1] = x[i] + h/2 * (k1 + k2)
+    return t, x
 
 
+# Runge-kutta method of order 4
+def RungeKutta4(dxdt, x0, tspan, n):
+    """ Calculates the solution of the ODE using the Runge-Kutta method
+        dxdt: rhs of the ODE as lambda function
+        x0: point of expansion
+        tspan: [a,b]
+        n: number of steps
+    """
+    a, b = tspan
+    h = (b-a)/n
+    h_half = h/2 # for convenience
+    h_sixth = h/6 # for convenience
+    t = np.linspace(a,b,n+1) 
+    x = np.zeros(n+1)
+    x[0] = x0
+    for i in range(n):
+        k1 = dxdt(t[i], x[i])
+        k2 = dxdt(t[i] + h_half, x[i] + k1/2)
+        k3 = dxdt(t[i] + h_half, x[i] + k2/2)
+        k4 = dxdt(t[i] + h, x[i] + k3)
+        x[i+1] = x[i] + (k1 + 2*k2 + 2*k3 + k4) * h_sixth
+    return t, x
 
+# Heun method
+def Heun(dxdt, x0, tspan, n):
+    """ Calculates the solution of the ODE using the Heun method
+        dxdt: rhs of the ODE as lambda function
+        x0: point of expansion
+        tspan: [a,b]
+        n: number of steps
+    """
+    a, b = tspan
+    h = (b-a)/n
+    h_half = h/2 # for convenience
+    t = np.linspace(a,b,n+1)
+    x = np.zeros(n+1)
+    x[0] = x0
+    for i in range(n): # Heun's method
+        K1 = dxdt(t[i], x[i])
+        K2 = dxdt(t[i+1], x[i] + h * K1)
+        x[i+1] = x[i] + (K2 + K1) * h_half
+    return t, x
 
+#####
+# System of ODE'se
+#####
+# Convert 2 ODE's to system of ODE's
+def f2(x, y):
+    """ Takes two ODE's and returns the system of ODE's
+        x: ODE as lambda function
+        y: ODE as lambda function
+    """
+    def f(t, X):
+        return np.array([x(t, X[0], X[1]), y(t, X[0], X[1])])
+    return f
+
+# Runge-kutta method of order 4 for system of ODE's
+def RungeKutta4System(f, tspan, xi, nsteps):
+    """ Calculates the solution to the system of ODE's using the Runge-Kutta method
+        f: system of ODE's (use f2)
+        tspan: [a,b]
+        xi: array of initial conditions
+        nsteps: number of steps
+    """
+    a,b = tspan
+    h = (b-a)/nsteps
+    h_half = h/2 # for convenience
+    h_sixth = h/6 # for convenience
+    t = np.linspace(a,b,nsteps+1)
+    X = np.zeros((nsteps+1, len(xi)))
+    X[0] = xi
+    for i in range(nsteps):
+        k1 = f(t[i], X[i])
+        k2 = f(t[i] + h_half, X[i] + h_half * k1)
+        k3 = f(t[i] + h_half, X[i] + h_half * k2)
+        k4 = f(t[i] + h, X[i] + h * k3)
+        X[i+1] = X[i] + (k1 + 2*k2 + 2*k3 + k4) * h_sixth
+
+    return t, X
+
+    
+ 
 
 
