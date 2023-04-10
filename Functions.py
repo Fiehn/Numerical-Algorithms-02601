@@ -78,19 +78,17 @@ def Bisection(f, a, b, nmax):
     fb = f(b)
     if fa * fb > 0:
         raise ValueError("f(a) and f(b) must have different signs")
-    X = [0] * (nmax + 1)  # Create X to store the iterations.
-    # Iterate.
+    X = [0] * (nmax + 1)  
+
     for n in range(nmax):
         c = (a + b) / 2  # The midpoint.
-        fc = f(c)  # The corresponding function value.
+        fc = f(c)  
         X[n] = c
         if fa * fc < 0:
             b = c
-            # fb = fc  # Note that fb = f(b) is actually not used.
         else:
             a = c
             fa = fc
-    # Finish by computing the midpoint of the last interval.
     c = (a + b) / 2
     X[nmax] = c
     return X
@@ -350,23 +348,23 @@ def RungeKutta4(dxdt, x0, tspan, n):
         tspan: [a,b]
         n: number of steps
     """
-    a, b = tspan
-    h = (b-a)/n
-    h_half = h/2 # for convenience
-    h_sixth = h/6 # for convenience
-    t = np.linspace(a,b,n+1) 
-    x = np.zeros(n+1)
+    a,b = tspan
+    h = (b - a) / n
+    h_half = h / 2.0 # for convenience
+    h_sixth = h / 6.0 # for convenience
+    t = np.linspace(a, b, n + 1) 
+    x = np.zeros(n + 1)
     x[0] = x0
     for i in range(n):
-        k1 = dxdt(t[i], x[i])
-        k2 = dxdt(t[i] + h_half, x[i] + k1/2)
-        k3 = dxdt(t[i] + h_half, x[i] + k2/2)
-        k4 = dxdt(t[i] + h, x[i] + k3)
-        x[i+1] = x[i] + (k1 + 2*k2 + 2*k3 + k4) * h_sixth
+        K1 = dxdt(t[i], x[i])
+        K2 = dxdt(t[i] + h_half, x[i] + K1*h_half)
+        K3 = dxdt(t[i] + h_half, x[i] + K2*h_half)
+        K4 = dxdt(t[i + 1], x[i] + h*K3)
+        x[i+1] = x[i] + (K1 + 2 * (K2 + K3) + K4) * h_sixth
     return t, x
 
 # Heun method
-def Heun(dxdt, x0, tspan, n):
+def HeunODE(dxdt, x0, tspan, n):
     """ Calculates the solution of the ODE using the Heun method
         dxdt: rhs of the ODE as lambda function
         x0: point of expansion
