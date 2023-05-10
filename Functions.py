@@ -20,7 +20,7 @@ def Horners(a,x):
         p = a[i+1]+p*x
     return p
 
-### Fitting Least Squares
+### Least Squares
 # Function to be fitted:
 F = lambda x: [1,x,np.sin(x)**2,np.cos(x)**2]
 # Function after fitting:
@@ -35,6 +35,48 @@ def fit(F,Fc,x,y):
     A = np.array(list(map(F,x)))
     c = np.linalg.solve(A.T@A, A.T@y)
     return Fc(x,c),c
+
+### Print matrix nice
+def print_table(A):
+    """ Print matrix in nice format
+    A: matrix
+    """
+    if type(A) != np.ndarray:
+        A = np.array(A)
+    m,n = A.shape
+    for i in range(m):
+        for j in range(n-1):
+            print("{:10.4f}".format(A[i,j]),end=" ")
+        print("{:10.4f}".format(A[i,-1]),end=" ")
+        print()
+
+def print_normal_equation(F,x,y,digits=4):
+    """ Print the normal equation for a given function F
+    F: function to be fitted
+    x: x-values
+    """
+    A = np.array(list(map(F,x)))
+    print_table(A.T@A)
+    print(np.round(A.T@y,4))
+
+
+### Print matrix to latex
+def print_table_latex(A):
+    """ Print normal equations in latex format
+    A: matrix
+    """
+    if type(A) != np.ndarray:
+        A = np.array(A)
+    m,n = A.shape
+    print(r"\begin{equation*}")
+    print(r"\begin{array}{|"+n*"r"+"|}")
+    for i in range(m):
+        for j in range(n-1):
+            print(A[i,j],end=" & ")
+        print(A[i,-1],end="\\\\")
+        print()
+    print(r"\end{array}")
+    print(r"\end{equation*}")
 
 #####
 # Root finding
@@ -61,6 +103,22 @@ def Newton(f,df,x0, nmax, tol=1e-6,true_root=None):
         x = x - fx/fp
         X.append(x)
     return X
+
+def Newtonsys(FdF, X0, kmax):
+    """ Newton's method for solving systems of equations
+    FdF: function returning F(x) and dF(x)
+    X0: initial guess
+    kmax: maximum number of iterations
+    """
+    X = X0
+    
+    Xiterations = []
+    for k in range(kmax):
+        Fx, dFx = FdF(X)
+        H = np.linalg.solve(dFx, Fx)
+        X = X - H.flatten()
+        Xiterations.append(X)
+    return np.array(Xiterations)
 
 # Bisection method for finding roots
 def Bisection(f, a, b, nmax):
@@ -227,7 +285,7 @@ def Trapezoidal(f, a, b, n):
     y = f(x)
     return h/2*(y[0]+y[-1]+2*np.sum(y[1:-1]))
 
-# Trapezoidal rule for unknown function (table)
+# Trapezoidal rule for unknown function (table) Would be the composite
 def TrapezTable(y,a,b,n):
     """Calculates the integral of f on [a,b] using the trapez formula
         y: list of function values
@@ -420,7 +478,91 @@ def RungeKutta4System(f, tspan, xi, nsteps):
 
     return t, X
 
-    
- 
+#########
+# Error
+#########
+def errorConvergece(n, error): 
+    """ Calculates the convergence rate of a method
+    n: list of iterations
+    error: list of errors
+    returns: rate of convergence and order of convergence
+    """
+    conv = []
+    r = []
+    for i in range(len(n)-1):
+        conv.append(np.log(error[i]/error[i+1])/np.log(n[i]/n[i+1]))
+        r.append(error[i+1]/error[i])
+    return conv, r
 
+def errorConvergenceValues(x,x_true):
+    """ Calcualates the convergence rate and order of a values
+    x: list of approximations
+    x_true: true value
+    returns: rate of convergence and order of convergence
+    """
+    conv = []
+    r = []
+    errors = []
+    for i in range(len(x)):
+        errors.append(np.abs(x[i]-x_true))
+    for i in range(len(x)-1):
+        conv.append(np.log(errors[i]/errors[i+1])/np.log(x[i]/x[i+1]))
+        r.append(errors[i+1]/errors[i])
+    return conv, r
+ 
+#######
+# Factorization
+#######
+
+### Check SPD
+def isSPD(A):
+    """ Check if matrix is symmetric positive definite
+    A: matrix
+    """
+    if type(A) != np.ndarray:
+        A = np.array(A)
+    if np.all(A == A.T):
+        try:
+            np.linalg.cholesky(A)
+            print("Symmetric positive definite")
+            return True
+        except np.linalg.LinAlgError:
+            print("Symmetric but not positive definite")
+            return False
+    else:
+        print("Not symmetric")
+        return False
+    
+### Cholesky factorization
+def Cholesky(A):
+    return np.linalg.cholesky(A)
+
+def Cholesky2L(A):
+    """ Gives back each step to finding L
+    A: matrix
+    """
+    if type(A) != np.ndarray:
+        A = np.array(A)
+    n = len(A)
+    L = np.zeros((n,n))
+    L_sym = [["" for i in range(n)] for j in range(n)]
+    for i in range(n):
+        for j in range(i+1):
+            if i == j:
+                L[i,j] = np.sqrt(A[i,j] - np.sum(L[i,:j]**2))
+                if np.sum(L[i,:j]**2)==0:
+                    L_sym[i][j] = f"sqrt({A[i,j]})"
+                else: 
+                    L_sym[i][j] = f"sqrt({A[i,j]} - {np.sum(L[i,:j])}^2)"
+            else:
+                L[i,j] = (A[i,j] - np.sum(L[i,:j]*L[j,:j]))/L[j,j]
+                if np.sum(L[i,:j]*L[j,:j])==0:
+                    L_sym[i][j] = f"{A[i,j]}/{L[j,j]}"
+                else:
+                    L_sym[i][j] = f"({A[i,j]} - {np.sum(L[i,:j]*L[j,:j])})/{L[j,j]}"
+    return L, L_sym
+
+### LU factorization
+def LU(A):
+    return np.linalg.lu(A)
 
